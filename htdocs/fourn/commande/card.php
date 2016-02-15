@@ -39,6 +39,7 @@ require_once DOL_DOCUMENT_ROOT.'/fourn/class/fournisseur.product.class.php';
 require_once DOL_DOCUMENT_ROOT.'/core/lib/fourn.lib.php';
 require_once DOL_DOCUMENT_ROOT.'/core/lib/functions2.lib.php';
 require_once DOL_DOCUMENT_ROOT.'/core/lib/files.lib.php';
+require_once DOL_DOCUMENT_ROOT.'/core/lib/date.lib.php';
 require_once DOL_DOCUMENT_ROOT.'/core/class/doleditor.class.php';
 if (! empty($conf->supplier_proposal->enabled))
 	require DOL_DOCUMENT_ROOT . '/supplier_proposal/class/supplier_proposal.class.php';
@@ -339,6 +340,27 @@ if (empty($reshook))
 	        $error++;
 	    }
 
+		if ($date_start && $date_end)
+		{
+			if ($date_start > $date_end)
+			{
+				setEventMessage($langs->trans('ErrorStartDateGreaterEnd'), 'errors');
+				$error++;
+			}
+			else
+			{
+				$duration = GETPOST('duration_value', 'int');
+				if (is_numeric($duration) && $duration > 0) {
+					$durationqty=calculateDurationQuantity($date_start, $date_end, $duration, GETPOST('duration_unit', 'alpha'));
+					if ($durationqty < 1)
+					{
+						setEventMessage($langs->trans('DateRangeShortForDuration', 'errors'));
+						$error++;
+					}
+				}
+			}
+		}
+
 	    // Ecrase $pu par celui	du produit
 	    // Ecrase $desc	par	celui du produit
 	    // Ecrase $txtva  par celui du produit
@@ -548,75 +570,101 @@ if (empty($reshook))
 			}
 		}
 
-	    $result	= $object->updateline(
-	        $lineid,
-	        $_POST['product_desc'],
-	        $ht,
-	        $_POST['qty'],
-	        $_POST['remise_percent'],
-	        $tva_tx,
-	        $localtax1_tx,
-	        $localtax2_tx,
-	        $price_base_type,
-	        0,
-	        isset($_POST["type"])?$_POST["type"]:$line->product_type,
-	        false,
-	        $date_start,
-	        $date_end,
-	    	$array_options,
-		    $_POST['units']
-	    );
-	    unset($_POST['qty']);
-	    unset($_POST['type']);
-	    unset($_POST['idprodfournprice']);
-	    unset($_POST['remmise_percent']);
-	    unset($_POST['dp_desc']);
-	    unset($_POST['np_desc']);
-	    unset($_POST['pu']);
-	    unset($_POST['tva_tx']);
-	    unset($_POST['date_start']);
-	    unset($_POST['date_end']);
-		unset($_POST['units']);
-	    unset($localtax1_tx);
-	    unset($localtax2_tx);
+		$error = 0;
 
-		unset($_POST['date_starthour']);
-		unset($_POST['date_startmin']);
-		unset($_POST['date_startsec']);
-		unset($_POST['date_startday']);
-		unset($_POST['date_startmonth']);
-		unset($_POST['date_startyear']);
-		unset($_POST['date_endhour']);
-		unset($_POST['date_endmin']);
-		unset($_POST['date_endsec']);
-		unset($_POST['date_endday']);
-		unset($_POST['date_endmonth']);
-		unset($_POST['date_endyear']);
+		if ($date_start && $date_end)
+		{
+			if ($date_start > $date_end)
+			{
+				setEventMessage($langs->trans('ErrorStartDateGreaterEnd'), 'errors');
+				$error++;
+			}
+			else
+			{
+				$duration = GETPOST('duration_value', 'int');
+				if (is_numeric($duration) && $duration > 0) {
+					$durationqty=calculateDurationQuantity($date_start, $date_end, $duration, GETPOST('duration_unit', 'alpha'));
+					if ($durationqty < 1)
+					{
+						setEventMessage($langs->trans('DateRangeShortForDuration', 'errors'));
+						$error++;
+					}
+				}
+			}
+		}
 
-	    if ($result	>= 0)
-	    {
-	        // Define output language
-	    	if (empty($conf->global->MAIN_DISABLE_PDF_AUTOUPDATE))
-	    	{
-	    		$outputlangs = $langs;
-	    		$newlang = '';
-	    		if ($conf->global->MAIN_MULTILANGS && empty($newlang) && GETPOST('lang_id')) $newlang = GETPOST('lang_id','alpha');
-	    		if ($conf->global->MAIN_MULTILANGS && empty($newlang))	$newlang = $object->thirdparty->default_lang;
-	    		if (! empty($newlang)) {
-	    			$outputlangs = new Translate("", $conf);
-	    			$outputlangs->setDefaultLang($newlang);
-	    		}
-	    		$model=$object->modelpdf;
-	    		$ret = $object->fetch($id); // Reload to get new records
+		if (!$error)
+		{
+		    $result	= $object->updateline(
+		        $lineid,
+		        $_POST['product_desc'],
+		        $ht,
+		        $_POST['qty'],
+		        $_POST['remise_percent'],
+		        $tva_tx,
+		        $localtax1_tx,
+		        $localtax2_tx,
+		        $price_base_type,
+		        0,
+		        isset($_POST["type"])?$_POST["type"]:$line->product_type,
+		        false,
+		        $date_start,
+		        $date_end,
+		        $array_options,
+			    $_POST['units']
+		    );
+		    unset($_POST['qty']);
+		    unset($_POST['type']);
+		    unset($_POST['idprodfournprice']);
+		    unset($_POST['remmise_percent']);
+		    unset($_POST['dp_desc']);
+		    unset($_POST['np_desc']);
+		    unset($_POST['pu']);
+		    unset($_POST['tva_tx']);
+		    unset($_POST['date_start']);
+		    unset($_POST['date_end']);
+			unset($_POST['units']);
+		    unset($localtax1_tx);
+		    unset($localtax2_tx);
 
-	    		$result=$object->generateDocument($model, $outputlangs, $hidedetails, $hidedesc, $hideref);
-	    		if ($result < 0) dol_print_error($db,$result);
-	    	}
-	    }
-	    else
-	    {
-	        dol_print_error($db,$object->error);
-	        exit;
+			unset($_POST['date_starthour']);
+			unset($_POST['date_startmin']);
+			unset($_POST['date_startsec']);
+			unset($_POST['date_startday']);
+			unset($_POST['date_startmonth']);
+			unset($_POST['date_startyear']);
+			unset($_POST['date_endhour']);
+			unset($_POST['date_endmin']);
+			unset($_POST['date_endsec']);
+			unset($_POST['date_endday']);
+			unset($_POST['date_endmonth']);
+			unset($_POST['date_endyear']);
+
+		    if ($result	>= 0)
+		    {
+		        // Define output language
+		        if (empty($conf->global->MAIN_DISABLE_PDF_AUTOUPDATE))
+		        {
+		            $outputlangs = $langs;
+		            $newlang = '';
+		            if ($conf->global->MAIN_MULTILANGS && empty($newlang) && GETPOST('lang_id')) $newlang = GETPOST('lang_id','alpha');
+		            if ($conf->global->MAIN_MULTILANGS && empty($newlang))	$newlang = $object->thirdparty->default_lang;
+		            if (! empty($newlang)) {
+		                $outputlangs = new Translate("", $conf);
+		                $outputlangs->setDefaultLang($newlang);
+		            }
+		            $model=$object->modelpdf;
+		            $ret = $object->fetch($id); // Reload to get new records
+
+		            $result=$object->generateDocument($model, $outputlangs, $hidedetails, $hidedesc, $hideref);
+		            if ($result < 0) dol_print_error($db,$result);
+		        }
+		    }
+		    else
+		    {
+		        dol_print_error($db,$object->error);
+		        exit;
+		    }
 	    }
 	}
 

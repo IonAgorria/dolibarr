@@ -37,6 +37,7 @@ require_once DOL_DOCUMENT_ROOT.'/fourn/class/fournisseur.facture.class.php';
 require_once DOL_DOCUMENT_ROOT.'/fourn/class/paiementfourn.class.php';
 require_once DOL_DOCUMENT_ROOT.'/core/lib/fourn.lib.php';
 require_once DOL_DOCUMENT_ROOT.'/core/lib/files.lib.php';
+require_once DOL_DOCUMENT_ROOT.'/core/lib/date.lib.php';
 require_once DOL_DOCUMENT_ROOT.'/core/class/doleditor.class.php';
 if (!empty($conf->produit->enabled))
 	require_once DOL_DOCUMENT_ROOT.'/product/class/product.class.php';
@@ -620,6 +621,31 @@ if (empty($reshook))
 				}
 			}
 
+		$error = 0;
+
+		if ($date_start && $date_end)
+		{
+			if ($date_start > $date_end)
+			{
+				setEventMessage($langs->trans('ErrorStartDateGreaterEnd'), 'errors');
+				$error++;
+			}
+			else
+			{
+				$duration = GETPOST('duration_value', 'int');
+				if (is_numeric($duration) && $duration > 0) {
+					$durationqty=calculateDurationQuantity($date_start, $date_end, $duration, GETPOST('duration_unit', 'alpha'));
+					if ($durationqty < 1)
+					{
+						setEventMessage($langs->trans('DateRangeShortForDuration', 'errors'));
+						$error++;
+					}
+				}
+			}
+		}
+
+		if (! $error)
+		{
 	        $result=$object->updateline(GETPOST('lineid'), $label, $up, $tva_tx, $localtax1_tx, $localtax2_tx, GETPOST('qty'), GETPOST('productid'), $price_base_type, 0, $type, $remise_percent, 0, $date_start, $date_end, $array_options, $_POST['units']);
 	        if ($result >= 0)
 	        {
@@ -644,6 +670,7 @@ if (empty($reshook))
 	        	$db->rollback();
 	            setEventMessages($object->error, $object->errors, 'errors');
 	        }
+		}
 	}
 
 	elseif ($action == 'addline' && $user->rights->fournisseur->facture->creer)
@@ -720,6 +747,26 @@ if (empty($reshook))
 	        setEventMessages($langs->trans('ErrorFieldRequired', $langs->transnoentitiesnoconv('Qty')), null, 'errors');
 	        $error++;
 	    }
+		if ($date_start && $date_end)
+		{
+			if ($date_start > $date_end)
+			{
+				setEventMessage($langs->trans('ErrorStartDateGreaterEnd'), 'errors');
+				$error++;
+			}
+			else
+			{
+				$duration = GETPOST('duration_value', 'int');
+				if (is_numeric($duration) && $duration > 0) {
+					$durationqty=calculateDurationQuantity($date_start, $date_end, $duration, GETPOST('duration_unit', 'alpha'));
+					if ($durationqty < 1)
+					{
+						setEventMessage($langs->trans('DateRangeShortForDuration', 'errors'));
+						$error++;
+					}
+				}
+			}
+		}
 
 	    if (GETPOST('prod_entry_mode') != 'free')	// With combolist mode idprodfournprice is > 0 or -1. With autocomplete, idprodfournprice is > 0 or ''
 	    {
