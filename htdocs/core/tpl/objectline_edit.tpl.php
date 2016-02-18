@@ -235,7 +235,9 @@ $coldisplay=-1; // We remove first td
 		$ret = $lineproduct->fetch($line->fk_product);
 		if ($ret > 0)
 		{
+			$duration_value = $lineproduct->duration_value;
 			$duration_unit = $lineproduct->duration_unit;
+			echo '<input type="hidden" id="duration_value" name="duration_value" value="'.$duration_value.'">';
 			echo '<input type="hidden" id="duration_unit" name="duration_unit" value="'.$duration_unit.'">';
 		}
 		unset($lineproduct);
