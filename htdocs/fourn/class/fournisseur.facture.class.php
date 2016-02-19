@@ -1297,7 +1297,7 @@ class FactureFournisseur extends CommonInvoice
      */
     function updateline($id, $desc, $pu, $vatrate, $txlocaltax1=0, $txlocaltax2=0, $qty=1, $idproduct=0, $price_base_type='HT', $info_bits=0, $type=0, $remise_percent=0, $notrigger=false, $date_start='', $date_end='', $array_options=0, $fk_unit = null)
     {
-    	global $mysoc;
+    	global $mysoc, $langs, $conf;
         dol_syslog(get_class($this)."::updateline $id,$desc,$pu,$vatrate,$qty,$idproduct,$price_base_type,$info_bits,$type,$remise_percent,$fk_unit", LOG_DEBUG);
         include_once DOL_DOCUMENT_ROOT.'/core/lib/price.lib.php';
 
@@ -1325,6 +1325,7 @@ class FactureFournisseur extends CommonInvoice
         $localtaxes_type=getLocalTaxesFromRate($vatrate,0,$mysoc, $this->thirdparty);
         $vatrate = preg_replace('/\s*\(.*\)/','',$vatrate);  // Remove code into vatrate.
 
+        $durationqty = 1;
         $product_type = $type;
         if ($idproduct)
         {
@@ -1333,10 +1334,24 @@ class FactureFournisseur extends CommonInvoice
             if ($result > 0)
             {
                 $product_type = $product->type;
+                if (!empty($conf->global->MAIN_USE_DURATION_DATERANGE))
+                {
+                    if ($product_type == Product::TYPE_SERVICE && $date_start && $date_end && $product->duration_value && $product->duration_unit)
+                    {
+                        require_once DOL_DOCUMENT_ROOT.'/core/lib/date.lib.php';
+                        $durationqty = calculateDurationQuantity($date_start, $date_end, $product->duration_value, $product->duration_unit);
+                        if ($durationqty <= 0)
+                        {
+                            $this->error = $langs->trans('DateRangeShortForDuration');
+                            return -2;
+                        }
+                    }
+                }
             }
         }
         
-        $tabprice = calcul_price_total($qty, $pu, $remise_percent, $vatrate, $txlocaltax1, $txlocaltax2, 0, $price_base_type, $info_bits, $type, $this->thirdparty, $localtaxes_type, 100, $this->multicurrency_tx);
+        $tabprice = calcul_price_total($qty * $durationqty, $pu, $remise_percent, $vatrate, $txlocaltax1, $txlocaltax2, 0, $price_base_type, $info_bits, $type, $this->thirdparty, $localtaxes_type, 100, $this->multicurrency_tx);
+
         $total_ht  = $tabprice[0];
         $total_tva = $tabprice[1];
         $total_ttc = $tabprice[2];

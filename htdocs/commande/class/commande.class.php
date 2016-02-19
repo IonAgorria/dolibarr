@@ -1259,6 +1259,7 @@ class Commande extends CommonOrder
         {
             $this->db->begin();
 
+            $durationqty = 1;
         	$product_type=$type;
 			if (!empty($fk_product))
 			{
@@ -1270,7 +1271,20 @@ class Commande extends CommonOrder
 				{
 					$product_type = $product->type;
 
-					if (! empty($conf->global->STOCK_MUST_BE_ENOUGH_FOR_ORDER) && $product_type == 0 && $product->stock_reel < $qty) {
+					if (!empty($conf->global->MAIN_USE_DURATION_DATERANGE)) {
+						if ($product_type == Product::TYPE_SERVICE && $date_start && $date_end && $product->duration_value && $product->duration_unit)
+						{
+							require_once DOL_DOCUMENT_ROOT.'/core/lib/date.lib.php';
+							$durationqty = calculateDurationQuantity($date_start, $date_end, $product->duration_value, $product->duration_unit);
+							if ($durationqty <= 0)
+							{
+								$this->error = $langs->trans('DateRangeShortForDuration');
+								return -4;
+							}
+						}
+					}
+
+					if (! empty($conf->global->STOCK_MUST_BE_ENOUGH_FOR_ORDER) && $product_type == 0 && $product->stock_reel < $qty * $durationqty) {
 						$this->error=$langs->trans('ErrorStockIsNotEnough');
 					    dol_syslog(get_class($this)."::addline error=Product ".$product->ref.": ".$this->error, LOG_ERR);
 						$this->db->rollback();
@@ -1285,8 +1299,8 @@ class Commande extends CommonOrder
 
             $localtaxes_type=getLocalTaxesFromRate($txtva,0,$this->thirdparty,$mysoc);
             $txtva = preg_replace('/\s*\(.*\)/','',$txtva);  // Remove code into vatrate.
-            
-            $tabprice = calcul_price_total($qty, $pu, $remise_percent, $txtva, $txlocaltax1, $txlocaltax2, 0, $price_base_type, $info_bits, $product_type, $mysoc, $localtaxes_type, 100, $this->multicurrency_tx);
+
+            $tabprice = calcul_price_total($qty * $durationqty, $pu, $remise_percent, $txtva, $txlocaltax1, $txlocaltax2, 0, $price_base_type, $info_bits, $product_type, $mysoc, $localtaxes_type, 100, $this->multicurrency_tx);
 
             $total_ht  = $tabprice[0];
             $total_tva = $tabprice[1];
@@ -2552,6 +2566,7 @@ class Commande extends CommonOrder
             $line = new OrderLine($this->db);
             $line->fetch($rowid);
 
+            $durationqty = 1;
             if (!empty($line->fk_product))
             {
                 $product=new Product($this->db);
@@ -2570,6 +2585,19 @@ class Commande extends CommonOrder
                     unset($_POST['buying_price']);
                     return self::STOCK_NOT_ENOUGH_FOR_ORDER;
                 }
+
+                if ($result > 0 && !empty($conf->global->MAIN_USE_DURATION_DATERANGE)) {
+                    if ($product->type == Product::TYPE_SERVICE && $date_start && $date_end && $product->duration_value && $product->duration_unit)
+                    {
+                        require_once DOL_DOCUMENT_ROOT.'/core/lib/date.lib.php';
+                        $durationqty = calculateDurationQuantity($date_start, $date_end, $product->duration_value, $product->duration_unit);
+                        if ($durationqty <= 0)
+                        {
+                            $this->error = $langs->trans('DateRangeShortForDuration');
+                            return -4 ;
+                        }
+                    }
+                }
             }
 
             $staticline = clone $line;
@@ -2585,8 +2613,8 @@ class Commande extends CommonOrder
 
             $localtaxes_type=getLocalTaxesFromRate($txtva,0,$this->thirdparty, $mysoc);
             $txtva = preg_replace('/\s*\(.*\)/','',$txtva);  // Remove code into vatrate.
-            
-            $tabprice=calcul_price_total($qty, $pu, $remise_percent, $txtva, $txlocaltax1, $txlocaltax2, 0, $price_base_type, $info_bits, $type, $mysoc, $localtaxes_type, 100, $this->multicurrency_tx);
+
+            $tabprice=calcul_price_total($qty * $durationqty, $pu, $remise_percent, $txtva, $txlocaltax1, $txlocaltax2, 0, $price_base_type, $info_bits, $type, $mysoc, $localtaxes_type, 100, $this->multicurrency_tx);
 
             $total_ht  = $tabprice[0];
             $total_tva = $tabprice[1];

@@ -2308,6 +2308,7 @@ class Facture extends CommonInvoice
 		{
 			$this->db->begin();
 
+			$durationqty = 1;
 			$product_type=$type;
 			if (!empty($fk_product))
 			{
@@ -2318,7 +2319,21 @@ class Facture extends CommonInvoice
 				{
 					$product_type = $product->type;
 
-					if (! empty($conf->global->STOCK_MUST_BE_ENOUGH_FOR_INVOICE) && $product_type == 0 && $product->stock_reel < $qty) {
+					if (!empty($conf->global->MAIN_USE_DURATION_DATERANGE))
+					{
+						if ($product_type == Product::TYPE_SERVICE && $date_start && $date_end && $product->duration_value && $product->duration_unit)
+						{
+							require_once DOL_DOCUMENT_ROOT.'/core/lib/date.lib.php';
+							$durationqty = calculateDurationQuantity($date_start, $date_end, $product->duration_value, $product->duration_unit);
+							if ($durationqty <= 0)
+							{
+								$this->error = $langs->trans('DateRangeShortForDuration');
+								return -4;
+							}
+						}
+					}
+
+					if (! empty($conf->global->STOCK_MUST_BE_ENOUGH_FOR_INVOICE) && $product_type == 0 && $product->stock_reel < $qty * $durationqty) {
 						$this->error=$langs->trans('ErrorStockIsNotEnough');
 						$this->db->rollback();
 						return -3;
@@ -2334,7 +2349,7 @@ class Facture extends CommonInvoice
 			$localtaxes_type=getLocalTaxesFromRate($txtva,0,$this->thirdparty, $mysoc);
 			$txtva = preg_replace('/\s*\(.*\)/','',$txtva);  // Remove code into vatrate.
 
-			$tabprice = calcul_price_total($qty, $pu, $remise_percent, $txtva, $txlocaltax1, $txlocaltax2, 0, $price_base_type, $info_bits, $product_type, $mysoc, $localtaxes_type, $situation_percent, $this->multicurrency_tx);
+			$tabprice = calcul_price_total($qty * $durationqty, $pu, $remise_percent, $txtva, $txlocaltax1, $txlocaltax2, 0, $price_base_type, $info_bits, $product_type, $mysoc, $localtaxes_type, $situation_percent, $this->multicurrency_tx);
 
 			$total_ht  = $tabprice[0];
 			$total_tva = $tabprice[1];
@@ -2474,7 +2489,7 @@ class Facture extends CommonInvoice
 
 		include_once DOL_DOCUMENT_ROOT.'/core/lib/price.lib.php';
 
-		global $mysoc,$langs;
+		global $mysoc, $langs, $conf;
 
 		dol_syslog(get_class($this)."::updateline rowid=$rowid, desc=$desc, pu=$pu, qty=$qty, remise_percent=$remise_percent, date_start=$date_start, date_end=$date_end, txtva=$txtva, txlocaltax1=$txlocaltax1, txlocaltax2=$txlocaltax2, price_base_type=$price_base_type, info_bits=$info_bits, type=$type, fk_parent_line=$fk_parent_line pa_ht=$pa_ht, special_code=$special_code fk_unit=$fk_unit", LOG_DEBUG);
 
@@ -2531,6 +2546,29 @@ class Facture extends CommonInvoice
 			$this->line = $line;
             $this->line->context = $this->context;
 
+			//Fetch product
+			if (!empty($this->line->fk_product))
+			{
+				$product=new Product($this->db);
+				$result=$product->fetch($this->line->fk_product);
+				if ($result > 0)
+				{
+					if (!empty($conf->global->MAIN_USE_DURATION_DATERANGE))
+					{
+						if ($product->type == Product::TYPE_SERVICE && $date_start && $date_end && $product->duration_value && $product->duration_unit)
+						{
+							require_once DOL_DOCUMENT_ROOT.'/core/lib/date.lib.php';
+							$durationqty = calculateDurationQuantity($date_start, $date_end, $product->duration_value, $product->duration_unit);
+							if ($durationqty <= 0)
+							{
+								$this->error = $langs->trans('DateRangeShortForDuration');
+								return -4 ;
+							}
+						}
+					}
+				}
+			}
+
 			// Calculate total with, without tax and tax from qty, pu, remise_percent and txtva
 			// TRES IMPORTANT: C'est au moment de l'insertion ligne qu'on doit stocker
 			// la part ht, tva et ttc, et ce au niveau de la ligne qui a son propre taux tva.
@@ -2538,7 +2576,7 @@ class Facture extends CommonInvoice
 			$localtaxes_type=getLocalTaxesFromRate($txtva,0,$this->thirdparty, $mysoc);
 			$txtva = preg_replace('/\s*\(.*\)/','',$txtva);  // Remove code into vatrate.
 					
-			$tabprice=calcul_price_total($qty, $pu, $remise_percent, $txtva, $txlocaltax1, $txlocaltax2, 0, $price_base_type, $info_bits, $type, $mysoc, $localtaxes_type, $situation_percent, $this->multicurrency_tx);
+			$tabprice=calcul_price_total($qty * $durationqty, $pu, $remise_percent, $txtva, $txlocaltax1, $txlocaltax2, 0, $price_base_type, $info_bits, $type, $mysoc, $localtaxes_type, $situation_percent, $this->multicurrency_tx);
 
 			$total_ht  = $tabprice[0];
 			$total_tva = $tabprice[1];

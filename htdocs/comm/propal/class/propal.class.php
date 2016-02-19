@@ -430,6 +430,7 @@ class Propal extends CommonObject
         {
             $this->db->begin();
 
+			$durationqty = 1;
 			$product_type=$type;
 			if (!empty($fk_product))
 			{
@@ -439,7 +440,21 @@ class Propal extends CommonObject
 				{
 					$product_type = $product->type;
 
-					if (! empty($conf->global->STOCK_MUST_BE_ENOUGH_FOR_PROPOSAL) && $product_type == 0 && $product->stock_reel < $qty) {
+					if (!empty($conf->global->MAIN_USE_DURATION_DATERANGE))
+					{
+						if ($product_type == Product::TYPE_SERVICE && $date_start && $date_end && $product->duration_value && $product->duration_unit)
+						{
+							require_once DOL_DOCUMENT_ROOT.'/core/lib/date.lib.php';
+							$durationqty = calculateDurationQuantity($date_start, $date_end, $product->duration_value, $product->duration_unit);
+							if ($durationqty <= 0)
+							{
+								$this->error = $langs->trans('DateRangeShortForDuration');
+								return -4;
+							}
+						}
+					}
+
+					if (! empty($conf->global->STOCK_MUST_BE_ENOUGH_FOR_PROPOSAL) && $product_type == 0 && $product->stock_reel < $qty * $durationqty) {
 						$this->error=$langs->trans('ErrorStockIsNotEnough');
 						$this->db->rollback();
 						return -3;
@@ -455,7 +470,7 @@ class Propal extends CommonObject
             $localtaxes_type=getLocalTaxesFromRate($txtva,0,$this->thirdparty,$mysoc);
             $txtva = preg_replace('/\s*\(.*\)/','',$txtva);  // Remove code into vatrate.
             
-            $tabprice=calcul_price_total($qty, $pu, $remise_percent, $txtva, $txlocaltax1, $txlocaltax2, 0, $price_base_type, $info_bits, $product_type, $mysoc, $localtaxes_type, 100, $this->multicurrency_tx);
+            $tabprice=calcul_price_total($qty * $durationqty, $pu, $remise_percent, $txtva, $txlocaltax1, $txlocaltax2, 0, $price_base_type, $info_bits, $product_type, $mysoc, $localtaxes_type, 100, $this->multicurrency_tx);
 
             $total_ht  = $tabprice[0];
             $total_tva = $tabprice[1];
@@ -601,7 +616,7 @@ class Propal extends CommonObject
      */
 	function updateline($rowid, $pu, $qty, $remise_percent, $txtva, $txlocaltax1=0.0, $txlocaltax2=0.0, $desc='', $price_base_type='HT', $info_bits=0, $special_code=0, $fk_parent_line=0, $skip_update_total=0, $fk_fournprice=0, $pa_ht=0, $label='', $type=0, $date_start='', $date_end='', $array_options=0, $fk_unit=null)
     {
-        global $mysoc;
+        global $mysoc, $langs, $conf;
 
         dol_syslog(get_class($this)."::updateLine rowid=$rowid, pu=$pu, qty=$qty, remise_percent=$remise_percent,
         txtva=$txtva, desc=$desc, price_base_type=$price_base_type, info_bits=$info_bits, special_code=$special_code, fk_parent_line=$fk_parent_line, pa_ht=$pa_ht, type=$type, date_start=$date_start, date_end=$date_end");
@@ -639,6 +654,19 @@ class Propal extends CommonObject
 				$result=$product->fetch($this->line->fk_product);
 				if ($result > 0)
 				{
+					if (!empty($conf->global->MAIN_USE_DURATION_DATERANGE))
+					{
+						if ($product->type == Product::TYPE_SERVICE && $date_start && $date_end && $product->duration_value && $product->duration_unit)
+						{
+							require_once DOL_DOCUMENT_ROOT.'/core/lib/date.lib.php';
+							$durationqty = calculateDurationQuantity($date_start, $date_end, $product->duration_value, $product->duration_unit);
+							if ($durationqty <= 0)
+							{
+								$this->error = $langs->trans('DateRangeShortForDuration');
+								return -4 ;
+							}
+						}
+					}
 				}
 			}
 
@@ -650,7 +678,7 @@ class Propal extends CommonObject
             $localtaxes_type=getLocalTaxesFromRate($txtva,0,$this->thirdparty,$mysoc);
             $txtva = preg_replace('/\s*\(.*\)/','',$txtva);  // Remove code into vatrate.
             
-            $tabprice=calcul_price_total($qty, $pu, $remise_percent, $txtva, $txlocaltax1, $txlocaltax2, 0, $price_base_type, $info_bits, $type, $mysoc, $localtaxes_type, 100, $this->multicurrency_tx);
+            $tabprice=calcul_price_total($qty * $durationqty, $pu, $remise_percent, $txtva, $txlocaltax1, $txlocaltax2, 0, $price_base_type, $info_bits, $type, $mysoc, $localtaxes_type, 100, $this->multicurrency_tx);
             $total_ht  = $tabprice[0];
             $total_tva = $tabprice[1];
             $total_ttc = $tabprice[2];
