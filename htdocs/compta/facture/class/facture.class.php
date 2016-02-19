@@ -2313,12 +2313,16 @@ class Facture extends CommonInvoice
 			{
 				$product=new Product($this->db);
 				$result=$product->fetch($fk_product);
-				$product_type=$product->type;
 
-				if (! empty($conf->global->STOCK_MUST_BE_ENOUGH_FOR_INVOICE) && $product_type == 0 && $product->stock_reel < $qty) {
-					$this->error=$langs->trans('ErrorStockIsNotEnough');
-					$this->db->rollback();
-					return -3;
+				if ($result > 0)
+				{
+					$product_type = $product->type;
+
+					if (! empty($conf->global->STOCK_MUST_BE_ENOUGH_FOR_INVOICE) && $product_type == 0 && $product->stock_reel < $qty) {
+						$this->error=$langs->trans('ErrorStockIsNotEnough');
+						$this->db->rollback();
+						return -3;
+					}
 				}
 			}
 
@@ -2504,6 +2508,29 @@ class Facture extends CommonInvoice
 			// Check parameters
 			if ($type < 0) return -1;
 
+			//Fetch current line from the database and then clone the object and set it in $oldline property
+			$line = new FactureLigne($this->db);
+			$line->fetch($rowid);
+
+			if (!empty($line->fk_product))
+			{
+				$product=new Product($this->db);
+				$result=$product->fetch($line->fk_product);
+				$product_type=$product->type;
+
+				if ($result > 0 && ! empty($conf->global->STOCK_MUST_BE_ENOUGH_FOR_INVOICE) && $product_type == 0 && $product->stock_reel < $qty) {
+					$this->error=$langs->trans('ErrorStockIsNotEnough');
+					$this->db->rollback();
+					return -3;
+				}
+			}
+
+			$staticline = clone $line;
+
+			$line->oldline = $staticline;
+			$this->line = $line;
+            $this->line->context = $this->context;
+
 			// Calculate total with, without tax and tax from qty, pu, remise_percent and txtva
 			// TRES IMPORTANT: C'est au moment de l'insertion ligne qu'on doit stocker
 			// la part ht, tva et ttc, et ce au niveau de la ligne qui a son propre taux tva.
@@ -2536,29 +2563,6 @@ class Facture extends CommonInvoice
 				$price = ($pu - $remise);
 			}
 			$price    = price2num($price);
-
-			//Fetch current line from the database and then clone the object and set it in $oldline property
-			$line = new FactureLigne($this->db);
-			$line->fetch($rowid);
-
-			if (!empty($line->fk_product))
-			{
-				$product=new Product($this->db);
-				$result=$product->fetch($line->fk_product);
-				$product_type=$product->type;
-
-				if (! empty($conf->global->STOCK_MUST_BE_ENOUGH_FOR_INVOICE) && $product_type == 0 && $product->stock_reel < $qty) {
-					$this->error=$langs->trans('ErrorStockIsNotEnough');
-					$this->db->rollback();
-					return -3;
-				}
-			}
-
-			$staticline = clone $line;
-
-			$line->oldline = $staticline;
-			$this->line = $line;
-            $this->line->context = $this->context;
 
 			// Reorder if fk_parent_line change
 			if (! empty($fk_parent_line) && ! empty($staticline->fk_parent_line) && $fk_parent_line != $staticline->fk_parent_line)

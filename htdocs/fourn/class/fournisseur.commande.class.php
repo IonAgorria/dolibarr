@@ -1350,18 +1350,20 @@ class CommandeFournisseur extends CommonOrder
         {
             $this->db->begin();
 
-            if ($fk_prod_fourn_price > 0)
+            $product_type = $type;
+            if ($fk_prod_fourn_price > 0 && $fk_product > 0)
             {
                 $prod = new Product($this->db, $fk_product);
                 if ($prod->fetch($fk_product) > 0)
                 {
+                    $product_type = $prod->type;
+
                     $result=$prod->get_buyprice($fk_prod_fourn_price,$qty,$fk_product,$fourn_ref);
                     if ($result > 0)
                     {
                         $label = $prod->libelle;
                         $pu    = $prod->fourn_pu;
                         $ref   = $prod->ref_fourn;
-                        $product_type = $prod->type;
                     }
                     if ($result == 0 || $result == -1)
                     {
@@ -1384,10 +1386,6 @@ class CommandeFournisseur extends CommonOrder
                     $this->error=$prod->error;
                     return -1;
                 }
-            }
-            else
-            {
-                $product_type = $type;
             }
 
             // Calcul du total TTC et de la TVA pour la ligne a partir de
@@ -2173,6 +2171,18 @@ class CommandeFournisseur extends CommonOrder
 
             // Check parameters
             if ($type < 0) return -1;
+
+			//Fetch product
+            $line = new CommandeFournisseurLigne($this->db);
+            $line->fetch($rowid);
+            if (!empty($line->fk_product))
+            {
+                $product=new Product($this->db);
+                $result=$product->fetch($line->fk_product);
+                if ($result > 0)
+                {
+                }
+            }
 
             // Calcul du total TTC et de la TVA pour la ligne a partir de
             // qty, pu, remise_percent et txtva
