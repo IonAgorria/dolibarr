@@ -851,6 +851,7 @@ function calculateDurationQuantity($start_date, $end_date, $duration, $duration_
 	if (!empty($duration_unit)) {
 		$duration = dol_time_plus_duree(0, $duration, $duration_unit);
 	}
+	$end_date += 60; //Add extra minute at end to compensate the lack of seconds in add/update lines
 	$qty = floor(($end_date - $start_date) / $duration);
 	return ($qty<0) ? 0 : $qty;
 }
