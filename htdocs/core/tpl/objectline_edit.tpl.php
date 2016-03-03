@@ -228,6 +228,18 @@ $coldisplay=-1; // We remove first td
 	$hourmin=(isset($conf->global->MAIN_USE_HOURMIN_IN_DATE_RANGE)?$conf->global->MAIN_USE_HOURMIN_IN_DATE_RANGE:'');
 	echo $form->select_date($line->date_start,'date_start',$hourmin,$hourmin,$line->date_start?0:1,"updateligne",1,0,1);
 	echo ' '.$langs->trans('to').' ';
+	if ($line->fk_product > 0)
+	{
+		global $db;
+		$lineproduct = new Product($db);
+		$ret = $lineproduct->fetch($line->fk_product);
+		if ($ret > 0)
+		{
+			$duration_unit = $lineproduct->duration_unit;
+			echo '<input type="hidden" id="duration_unit" name="duration_unit" value="'.$duration_unit.'">';
+		}
+		unset($lineproduct);
+	}
 	echo $form->select_date($line->date_end,'date_end',$hourmin,$hourmin,$line->date_end?0:1,"updateligne",1,0,1);
 	print '<script type="text/javascript">';
 	if (!$line->date_start) {

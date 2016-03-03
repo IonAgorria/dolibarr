@@ -176,14 +176,21 @@ else {
 		$filtertype='';
 		if (! empty($object->element) && $object->element == 'contrat' && empty($conf->global->CONTRACT_SUPPORT_PRODUCTS)) $filtertype='1';
 
+		//type must be changed after duration because the change() is hooked on seltype
+		echo '<input type="hidden" id="duration_unit" name="duration_unit" value="">';
+		echo '<input type="hidden" id="seltype" name="seltype" value="">';
+
 		if (empty($senderissupplier))
 		{
-			$form->select_produits(GETPOST('idprod'), 'idprod', $filtertype, $conf->product->limit_size, $buyer->price_level, 1, 2, '', 1, array(),$buyer->id);
+			$ajaxoptions=array(
+					'update' => array('duration_unit' => 'duration_unit', 'seltype' => 'type'),	// html id tags that will be edited with which ajax json response key
+			);
+			$form->select_produits(GETPOST('idprod'), 'idprod', $filtertype, $conf->product->limit_size, $buyer->price_level, 1, 2, '', 1, $ajaxoptions,$buyer->id);
 		}
 		else
 		{
 			$ajaxoptions=array(
-					'update' => array('qty'=>'qty','remise_percent' => 'discount','idprod' => 'idprod'),	// html id tags that will be edited with which ajax json response key
+					'update' => array('duration_unit' => 'duration_unit', 'seltype' => 'type', 'qty'=>'qty','remise_percent' => 'discount','idprod' => 'idprod'),	// html id tags that will be edited with which ajax json response key
 					'option_disabled' => 'addPredefinedProductButton',	// html id to disable once select is done
 					'warning' => $langs->trans("NoPriceDefinedForThisSupplier") // translation of an error saved into var 'error'
 			);
