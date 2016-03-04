@@ -2187,6 +2187,7 @@ class CommandeFournisseur extends CommonOrder
             if ($type < 0) return -1;
 
 			//Fetch product
+			$durationqty = 1;
             $line = new CommandeFournisseurLigne($this->db);
             $line->fetch($rowid);
             if (!empty($line->fk_product))

@@ -648,6 +648,7 @@ class Propal extends CommonObject
             $this->line->context = $this->context;
 
 			//Fetch product
+			$durationqty = 1;
 			if (!empty($this->line->fk_product))
 			{
 				$product=new Product($this->db);
